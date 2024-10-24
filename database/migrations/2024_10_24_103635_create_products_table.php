@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name')->nullable();
             $table->string('sku')->nullable()->unique();
-            $table->string('status')->nullable()->unique();
+            $table->string('status')->nullable();
             $table->text('variations')->nullable();
             $table->decimal('price', 7, 2)->nullable();
             $table->string('currency', 20)->nullable();
