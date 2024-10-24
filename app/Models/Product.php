@@ -11,4 +11,9 @@ class Product extends Model
     protected $fillable = [
         'id','name', 'sku', 'status', 'variations', 'price', 'currency'
     ];
+
+    public function variations()
+    {
+        return $this->hasMany(Variation::class);
+    }
 }
