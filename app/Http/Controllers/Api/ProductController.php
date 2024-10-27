@@ -13,6 +13,29 @@ use Illuminate\Support\Facades\Validator;
 class ProductController extends Controller
 {
 
+    public function syncProducts()
+    {
+        $response = Http::get('https://5fc7a13cf3c77600165d89a8.mockapi.io/api/v5/products');
+
+        if ($response->successful()) {
+            $products = $response->json();
+
+            foreach ($products as $productData) {
+                Product::updateOrCreate(
+                    ['id' => $productData['id']],
+                    [
+                        'name' => $productData['name'],
+                        'price' => $productData['price'],
+                    ]
+                );
+            }
+
+            return response()->json(['message' => 'Products synchronized successfully.']);
+        } else {
+            return response()->json(['message' => 'Failed to fetch products from API.'], 500);
+        }
+    }
+
     private function validateData(array $fields)
     {
         $data = [
