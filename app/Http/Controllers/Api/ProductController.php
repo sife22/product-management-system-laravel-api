@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\Variation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
@@ -13,17 +16,17 @@ class ProductController extends Controller
     private function validateData(array $fields)
     {
         $data = [
-            'id' => $fields[0],
+            'id' => trim($fields[0]),
             'name' => $fields[1] ?? '',
             'sku' => $fields[2] ?? '',
             'status' => $fields[3] ?? '',
-            'variations' => $fields[4] ?? '',
+            // 'variations' => $fields[4] ?? [],
             'price' => $fields[5] ?? 0,00,
             'currency' => $fields[6] ?? ''
         ];
 
         // On vérifie l'existance de l'identifiant et que il est numérique
-        if (empty($data['id']) || !is_numeric($data['id'])) {
+        if (empty($data['id'] || !is_numeric($data['id']))) {
             return false;
         }
 
@@ -65,14 +68,15 @@ class ProductController extends Controller
 
             // On utilise la fonction suivante pour convertir la ligne CSV en un tableau
             // , comme séparateur par defaut
-            $fields = str_getcsv($line);
+            $fields = str_getcsv($line, ','); 
+
 
             // On enlève les espaces si le cas
             $productId = trim($fields[0]); 
 
-            // On vérifie : si l'identifiant n'existe pas, on sort de la boucle
+            // On vérifie : si l'identifiant n'existe pas, on continue vers la ligne suivante
             if (empty($productId)) {
-                break 1;
+                continue;
             }
 
             // On supprime les produits existants pour les mettre à jour 
@@ -91,18 +95,40 @@ class ProductController extends Controller
                         'name' => $validatedData['name'],
                         'sku' => $validatedData['sku'],
                         'status' => $validatedData['status'],
-                        'variations' => $validatedData['variations'],
+                        // 'variations' => $validatedData['variations'],
                         'price' => $validatedData['price'],
                         'currency' => $validatedData['currency']
                     ]
                 );
+
+                // On gére les variations si existantes
+                if (!empty($fields[4])) {
+                    foreach (explode('],[', trim($fields[4], '[]')) as $variation) {
+                        $variationFields = explode(';', trim($variation));
+                        
+                        // On vérifie que le tableau des variations a 4 éléments
+                        if (count($variationFields) == 4) {
+                            list($color, $size, $quantity, $isAvailable) = $variationFields;
+                            Variation::create([
+                                'product_id' => $productId,
+                                'color' => $color,
+                                'size' => $size,
+                                'quantity' => $quantity,
+                                'is_available' => filter_var($isAvailable, FILTER_VALIDATE_BOOLEAN)
+                            ]);
+                        } else {
+                            // On gére les cas où les variations ne sont pas correctement formatées
+                            return response()->json(['error' => "Invalid variation format for product : $productId"], 400);
+                        }
+                    }
+                }
 
                 // On enregistre les identifiants des nouveaux produits ajoutés
                 $importedIds[] = $productId;
             } else {
 
                 // On gére les erreurs si la validation échoue
-                return response()->json(['error' => "Invalid data for line {{ $line }}"], 400);
+                return response()->json(['error' => "Invalid data for line : $line"], 400);
             }
         }
 
